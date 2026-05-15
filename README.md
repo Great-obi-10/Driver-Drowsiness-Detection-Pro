@@ -37,9 +37,8 @@ Built with a modular and clean architecture, making it easy to extend and custom
 
 *(Add your screenshots here)*
 
-![dashboard preview](screenshots/normal.png)
+![dashboard preview](screenshots/dashboard.png)
 ![telegram preview](screenshots/drowsy.png)
-![Danger State](screenshots/danger.png)
 
 ---
 
