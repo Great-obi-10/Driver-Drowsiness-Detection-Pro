@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver Monitoring System</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080c10;
+    --panel:     #0d1117;
+    --border:    #1a2535;
+    --accent:    #00d4ff;
+    --green:     #00ff88;
+    --orange:    #ff9500;
+    --red:       #ff2d55;
+    --text:      #c8d8e8;
+    --muted:     #4a5568;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-ui:   'Rajdhani', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline effect */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,212,255,0.015) 2px,
+      rgba(0,212,255,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ---------------------------------------------------------------- HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 12px rgba(0,212,255,0.3);
+    animation: pulse-border 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 12px rgba(0,212,255,0.3); }
+    50%       { box-shadow: 0 0 24px rgba(0,212,255,0.6); }
+  }
+
+  .logo h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .header-right { display: flex; align-items: center; gap: 20px; }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--green);
+    letter-spacing: 1px;
+  }
+
+  .live-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+  }
+
+  #clock {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* ---------------------------------------------------------------- LAYOUT */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    grid-template-rows: auto auto;
+    gap: 16px;
+    padding: 20px 28px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ---------------------------------------------------------------- PANEL */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,212,255,0.03);
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+
+  .panel-body { padding: 16px; }
+
+  /* -------------------------------------------------------- CAMERA FEED */
+  .camera-panel { grid-row: 1 / 3; }
+
+  .camera-wrap {
+    position: relative;
+    background: #000;
+    aspect-ratio: 4/3;
+    overflow: hidden;
+  }
+
+  #camera-feed {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .camera-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* Corner brackets */
+  .corner {
+    position: absolute;
+    width: 24px; height: 24px;
+    border-color: var(--accent);
+    border-style: solid;
+    opacity: 0.7;
+  }
+  .corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+  .corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+  .corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+  .status-badge {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    border: 1px solid;
+  }
+
+  .status-NORMAL  { background: rgba(0,255,136,0.15); color: var(--green);  border-color: var(--green);  }
+  .status-DROWSY  { background: rgba(255,149,0,0.15);  color: var(--orange); border-color: var(--orange); }
+  .status-DANGER  { background: rgba(255,45,85,0.2);   color: var(--red);   border-color: var(--red);
+                    animation: danger-pulse 0.8s ease-in-out infinite; }
+
+  @keyframes danger-pulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(255,45,85,0.4); }
+    50%       { box-shadow: 0 0 20px rgba(255,45,85,0.6); }
+  }
+
+  /* ------------------------------------------------------- FATIGUE METER */
+  .meter-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px;
+    gap: 12px;
+  }
+
+  .gauge-container {
+    position: relative;
+    width: 180px; height: 90px;
+  }
+
+  .gauge-bg {
+    width: 180px; height: 90px;
+    border-radius: 90px 90px 0 0;
+    background: conic-gradient(
+      from 180deg at 50% 100%,
+      var(--green)  0deg 60deg,
+      var(--orange) 60deg 108deg,
+      var(--red)    108deg 180deg
+    );
+    opacity: 0.15;
+    position: absolute;
+    top: 0;
+  }
+
+  .gauge-track {
+    width: 180px; height: 90px;
+    border-radius: 90px 90px 0 0;
+    border: 3px solid var(--border);
+    border-bottom: none;
+    position: absolute;
+    top: 0;
+  }
+
+  .gauge-fill {
+    width: 180px; height: 90px;
+    border-radius: 90px 90px 0 0;
+    position: absolute;
+    top: 0;
+    overflow: hidden;
+    transition: clip-path 0.4s ease;
+  }
+
+  .gauge-needle {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 3px;
+    height: 80px;
+    background: linear-gradient(to top, var(--accent), transparent);
+    transform-origin: bottom center;
+    transform: translateX(-50%) rotate(0deg);
+    transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    border-radius: 2px 2px 0 0;
+  }
+
+  .gauge-center {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  .gauge-score {
+    font-family: var(--font-mono);
+    font-size: 36px;
+    font-weight: 400;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .gauge-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ------------------------------------------------------- METRICS GRID */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .metric-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .metric-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .metric-value.accent { color: var(--accent); }
+  .metric-value.green  { color: var(--green); }
+  .metric-value.orange { color: var(--orange); }
+
+  /* -------------------------------------------------------- EVENT LOG */
+  .event-log {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .event-log::-webkit-scrollbar { width: 4px; }
+  .event-log::-webkit-scrollbar-track { background: transparent; }
+  .event-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .event-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.02);
+    border-left: 3px solid;
+    animation: slide-in 0.3s ease;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .event-NORMAL { border-color: var(--green); }
+  .event-DROWSY { border-color: var(--orange); }
+  .event-DANGER { border-color: var(--red); }
+
+  .event-time {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .event-text {
+    font-size: 12px;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .event-score {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  .no-events {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 20px;
+    font-family: var(--font-mono);
+  }
+
+  /* --------------------------------------------------------- TREND CHART */
+  .chart-wrap {
+    height: 120px;
+    position: relative;
+    margin-top: 4px;
+  }
+
+  canvas#trendChart {
+    width: 100% !important;
+    height: 120px !important;
+  }
+
+  /* ------------------------------------------------- HEAD POSE BAR */
+  .pose-bars { display: flex; flex-direction: column; gap: 8px; }
+
+  .pose-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .pose-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    width: 36px;
+    font-family: var(--font-mono);
+  }
+
+  .pose-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: visible;
+    position: relative;
+  }
+
+  .pose-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease, background 0.3s ease;
+    min-width: 3px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .pose-val {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text);
+    width: 40px;
+    text-align: right;
+  }
+
+  /* ------------------------------------------------- BOTTOM ROW */
+  .bottom-row {
+    grid-column: 1 / 3;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">👁</div>
+    <h1>Driver <span>Monitor</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      LIVE
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- CAMERA FEED -->
+  <div class="panel camera-panel">
+    <div class="panel-header">
+      <span class="panel-title">📷 Live Camera Feed</span>
+      <span id="focus-label" style="font-family:var(--font-mono);font-size:11px;color:var(--green);">FOCUS FORWARD</span>
+    </div>
+    <div class="camera-wrap">
+      <img id="camera-feed" src="/video_feed" alt="Camera Feed">
+      <div class="camera-overlay">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div id="status-badge" class="status-badge status-NORMAL">NORMAL</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- FATIGUE METER -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">⚡ Fatigue Score</span>
+      </div>
+      <div class="meter-wrap">
+        <div class="gauge-container">
+          <div class="gauge-bg"></div>
+          <div class="gauge-track"></div>
+          <div class="gauge-needle" id="gauge-needle"></div>
+          <div class="gauge-center"></div>
+        </div>
+        <div class="gauge-score" id="fatigue-score">0</div>
+        <div class="gauge-label">Fatigue Level</div>
+      </div>
+    </div>
+
+    <!-- METRICS -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📊 Live Metrics</span>
+      </div>
+      <div class="panel-body">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">EAR</div>
+            <div class="metric-value accent" id="m-ear">0.000</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">MAR</div>
+            <div class="metric-value accent" id="m-mar">0.000</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Blinks</div>
+            <div class="metric-value green" id="m-blinks">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Yawns</div>
+            <div class="metric-value orange" id="m-yawns">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Eye Closed</div>
+            <div class="metric-value" id="m-closed">0 frames</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Head Drops</div>
+            <div class="metric-value" id="m-drops">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end right column -->
+
+  <!-- BOTTOM ROW -->
+  <div class="bottom-row">
+
+    <!-- TREND CHART -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📈 Fatigue Trend</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--muted);">LAST 60 READINGS</span>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap">
+          <canvas id="trendChart"></canvas>
+        </div>
+        <!-- Head pose bars -->
+        <div class="pose-bars" style="margin-top:14px;">
+          <div class="pose-row">
+            <span class="pose-label">YAW</span>
+            <div class="pose-bar-track">
+              <div class="pose-bar-fill" id="bar-yaw" style="width:3px;background:var(--accent);"></div>
+            </div>
+            <span class="pose-val" id="val-yaw">0.0°</span>
+          </div>
+          <div class="pose-row">
+            <span class="pose-label">PITCH</span>
+            <div class="pose-bar-track">
+              <div class="pose-bar-fill" id="bar-pitch" style="width:3px;background:var(--orange);"></div>
+            </div>
+            <span class="pose-val" id="val-pitch">0.0°</span>
+          </div>
+          <div class="pose-row">
+            <span class="pose-label">ROLL</span>
+            <div class="pose-bar-track">
+              <div class="pose-bar-fill" id="bar-roll" style="width:3px;background:var(--green);"></div>
+            </div>
+            <span class="pose-val" id="val-roll">0.0°</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVENT LOG -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">🔔 Alert Log</span>
+        <span id="event-count" style="font-family:var(--font-mono);font-size:10px;color:var(--muted);">0 events</span>
+      </div>
+      <div class="panel-body">
+        <div class="event-log" id="event-log">
+          <div class="no-events">No alerts yet — driver is safe</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end bottom row -->
+
+</div><!-- end grid -->
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<script>
+// ---------------------------------------------------------------- CLOCK
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ---------------------------------------------------------------- CHART
+const ctx = document.getElementById('trendChart').getContext('2d');
+const trendChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Fatigue',
+      data: [],
+      borderColor: '#00d4ff',
+      backgroundColor: 'rgba(0,212,255,0.08)',
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.4,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 300 },
+    plugins: { legend: { display: false } },
+    scales: {
+      x: {
+        display: false,
+      },
+      y: {
+        min: 0, max: 100,
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: {
+          color: '#4a5568',
+          font: { family: 'Share Tech Mono', size: 10 },
+          stepSize: 25,
+        },
+        border: { color: '#1a2535' },
+      }
+    }
+  }
+});
+
+// ---------------------------------------------------------------- GAUGE
+function setGauge(score) {
+  // Needle goes from -90deg (0) to +90deg (100)
+  const angle = (score / 100) * 180 - 90;
+  document.getElementById('gauge-needle').style.transform =
+    `translateX(-50%) rotate(${angle}deg)`;
+  document.getElementById('fatigue-score').textContent = score;
+
+  // Color the score
+  const el = document.getElementById('fatigue-score');
+  if (score >= 60) el.style.color = 'var(--red)';
+  else if (score >= 30) el.style.color = 'var(--orange)';
+  else el.style.color = '#fff';
+}
+
+// ---------------------------------------------------------------- STATUS BADGE
+function setStatus(status) {
+  const badge = document.getElementById('status-badge');
+  badge.textContent = status;
+  badge.className = `status-badge status-${status}`;
+}
+
+// ---------------------------------------------------------------- POSE BARS
+function setPoseBar(id, valId, value, maxDeg) {
+  const pct = Math.min(Math.abs(value) / maxDeg * 100, 100);
+  const bar = document.getElementById(id);
+  bar.style.width = pct + '%';
+  document.getElementById(valId).textContent = value.toFixed(1) + '°';
+
+  if (pct > 70) bar.style.background = 'var(--red)';
+  else if (pct > 40) bar.style.background = 'var(--orange)';
+  else bar.style.background = '';
+}
+
+// ---------------------------------------------------------------- EVENTS
+function renderEvents(events) {
+  const log = document.getElementById('event-log');
+  document.getElementById('event-count').textContent = events.length + ' events';
+
+  if (events.length === 0) {
+    log.innerHTML = '<div class="no-events">No alerts yet — driver is safe</div>';
+    return;
+  }
+
+  log.innerHTML = events.map(e => `
+    <div class="event-item event-${e.status}">
+      <span class="event-time">${e.time}</span>
+      <span class="event-text">${e.status}${e.message ? ': ' + e.message : ''}</span>
+      <span class="event-score">${e.score}</span>
+    </div>
+  `).join('');
+}
+
+// ---------------------------------------------------------------- POLL METRICS
+async function poll() {
+  try {
+    const res  = await fetch('/metrics');
+    const data = await res.json();
+
+    // Score + gauge
+    setGauge(data.fatigue_score);
+    setStatus(data.status);
+
+    // Focus label
+    const focus = document.getElementById('focus-label');
+    focus.textContent = data.focus || 'FOCUS FORWARD';
+    focus.style.color = data.focus === 'FOCUS FORWARD' ? 'var(--green)' : 'var(--orange)';
+
+    // Metrics
+    document.getElementById('m-ear').textContent    = data.ear;
+    document.getElementById('m-mar').textContent    = data.mar;
+    document.getElementById('m-blinks').textContent = data.blinks;
+    document.getElementById('m-yawns').textContent  = data.yawns;
+    document.getElementById('m-closed').textContent = data.closed_frames + ' fr';
+    document.getElementById('m-drops').textContent  = data.head_drops;
+
+    // Pose bars
+    setPoseBar('bar-yaw',   'val-yaw',   data.yaw,   45);
+    setPoseBar('bar-pitch', 'val-pitch', data.pitch, 45);
+    setPoseBar('bar-roll',  'val-roll',  data.roll,  45);
+
+    // Chart
+    if (data.history && data.history.length > 0) {
+      trendChart.data.labels   = data.history.map(h => h.time);
+      trendChart.data.datasets[0].data = data.history.map(h => h.score);
+      trendChart.update('none');
+    }
+
+    // Events
+    renderEvents(data.events || []);
+
+  } catch (e) {
+    // Connection lost — retry silently
+  }
+}
+
+setInterval(poll, 500);  // poll every 500ms
+poll();
+</script>
+</body>
+</html>
